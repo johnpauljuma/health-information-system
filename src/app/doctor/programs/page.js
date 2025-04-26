@@ -8,12 +8,24 @@ export default function ProgramsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const programs = [
+  const [programs, setPrograms] = useState([
     { id: 1, name: "HIV Care", description: "HIV management program", status: "Active", createdAt: "2024-03-12" },
     { id: 2, name: "Malaria Treatment", description: "Malaria treatment initiative", status: "Active", createdAt: "2024-01-05" },
     { id: 3, name: "TB Awareness", description: "Tuberculosis awareness program", status: "Inactive", createdAt: "2023-12-01" },
-  ];
+  ]);
+
+  const handleOpenModal = () => setIsModalOpen(true);
+  const handleCloseModal = () => setIsModalOpen(false);
+
+  const handleProgramAdded = (newProgram) => {
+    setPrograms(prev => [...prev, newProgram]);
+    handleCloseModal();
+  };
+
+  const handleEditProgram = (programId) => {
+    console.log("Edit program", programId);
+    // Here you would open another modal or navigate to an edit page
+  };
 
   const filteredPrograms = programs.filter((program) => {
     const matchesSearch = program.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -27,7 +39,7 @@ export default function ProgramsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-800">Health Programs</h1>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={handleOpenModal}
           className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-md text-sm"
         >
           <Plus size={16} className="mr-2" />
@@ -37,8 +49,8 @@ export default function ProgramsPage() {
 
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center bg-white px-3 py-2 rounded-md shadow-sm w-full md:w-1/3">
-          <Search size={18} className="text-gray-400 mr-2" />
+        <div className="flex items-center bg-white px-3 py-2 rounded-md shadow-sm w-full md:w-1/3 text-gray-700">
+          <Search size={18} className="mr-2" />
           <input
             type="text"
             placeholder="Search programs..."
@@ -48,7 +60,7 @@ export default function ProgramsPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 text-gray-700">
           <Filter size={18} className="text-gray-400" />
           <select
             value={statusFilter}
@@ -63,7 +75,7 @@ export default function ProgramsPage() {
       </div>
 
       {/* Programs Table */}
-      <div className="overflow-x-auto bg-white rounded-md shadow-md">
+      <div className="overflow-x-auto bg-white rounded-md shadow-md text-gray-700">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-100 text-gray-700">
             <tr>
@@ -87,7 +99,12 @@ export default function ProgramsPage() {
                   </td>
                   <td className="px-6 py-4">{program.createdAt}</td>
                   <td className="px-6 py-4 text-center">
-                    <button className="text-blue-600 hover:underline text-sm">Edit</button>
+                    <button
+                      onClick={() => handleEditProgram(program.id)}
+                      className="text-blue-600 hover:underline text-sm"
+                    >
+                      Edit
+                    </button>
                   </td>
                 </tr>
               ))
@@ -103,7 +120,13 @@ export default function ProgramsPage() {
       </div>
 
       {/* Modal */}
-      <AddProgramModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      {isModalOpen && (
+        <AddProgramModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onProgramAdded={handleProgramAdded}
+        />
+      )}
     </div>
   );
 }
