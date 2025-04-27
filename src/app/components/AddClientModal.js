@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { User, Phone, Mail, MapPin, Calendar, ClipboardList, Droplet, AlertTriangle } from "lucide-react";
 import ModalWrapper from "./ModalWrapper";
+import { supabase } from "../../../lib/supabase";
 
 export default function AddClientModal({ isOpen, onClose, onAdd }) {
   const [clientData, setClientData] = useState({
@@ -30,21 +31,61 @@ export default function AddClientModal({ isOpen, onClose, onAdd }) {
   const [newAllergy, setNewAllergy] = useState("");
   const [newCondition, setNewCondition] = useState("");
   const [newMedication, setNewMedication] = useState("");
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const newClient = {
-      id: `CL-${Math.floor(Math.random() * 10000)}`,
-      ...clientData,
-      programs: [],
-      lastVisit: "-",
-      status: "Active",
-      registeredAt: new Date().toISOString()
-    };
-    onAdd(newClient);
-    onClose();
-  };
-
+  
+    try {
+      // Prepare the new client data for insertion
+      const newClient = {
+        first_name: clientData.name.first,
+        last_name: clientData.name.last,
+        dob: clientData.dob,
+        gender: clientData.gender,
+        pronouns: clientData.pronouns,
+        phone: clientData.contact.phone,
+        email: clientData.contact.email,
+        address: clientData.contact.address,
+        emergency_contact_name: clientData.contact.emergencyContact.name,
+        emergency_contact_relationship: clientData.contact.emergencyContact.relationship,
+        emergency_contact_phone: clientData.contact.emergencyContact.phone,
+        blood_type: clientData.medical.bloodType,
+        allergies: clientData.medical.allergies,
+        conditions: clientData.medical.conditions,
+        medications: clientData.medications,
+        marital_status: clientData.demographics.maritalStatus,
+        occupation: clientData.demographics.occupation,
+        language: clientData.demographics.language,
+        status: "Active",
+        last_visit: null, // Leave null for now or set a default value
+        registered_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+  
+      // Insert the new client data into Supabase
+      const { data, error } = await supabase.from("clients").insert([newClient]);
+  
+      // If there's an error during the insert
+      if (error) {
+        console.error("Error inserting client:", error);
+        alert("Error saving client: " + error.message);
+        return;
+      }
+  
+      // Successfully inserted the client
+      console.log("Client inserted:", data);
+      alert("Client saved successfully! 🎉");
+      onAdd(newClient); // Optionally trigger updates on the parent component
+      onClose(); // Close the modal after successful insertion
+    } catch (err) {
+      // Catch unexpected errors
+      console.error("Unexpected error:", err);
+      alert("Something went wrong. Please try again.");
+    }
+  };  
+  
   const handleChange = (path, value) => {
     setClientData(prev => {
       const keys = path.split('.');
@@ -108,7 +149,7 @@ export default function AddClientModal({ isOpen, onClose, onAdd }) {
             </div>
             <div>
               <label className="block text-sm text-gray-600 mb-1">Date of Birth *</label>
-              <div className="relative">
+              <div className="relative text-gray-600">
                 <input
                   type="date"
                   className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-200"
@@ -122,7 +163,7 @@ export default function AddClientModal({ isOpen, onClose, onAdd }) {
             <div>
               <label className="block text-sm text-gray-600 mb-1">Gender</label>
               <select
-                className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-200"
+                className="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-200 text-gray-600"
                 value={clientData.gender}
                 onChange={(e) => handleChange("gender", e.target.value)}
               >
@@ -131,7 +172,7 @@ export default function AddClientModal({ isOpen, onClose, onAdd }) {
                 <option>Other</option>
               </select>
             </div>
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 text-gray-600">
               <label className="block text-sm text-gray-600 mb-1">Pronouns (Optional)</label>
               <input
                 type="text"
@@ -184,7 +225,7 @@ export default function AddClientModal({ isOpen, onClose, onAdd }) {
                 <MapPin className="absolute right-3 top-2.5 text-gray-400" size={18} />
               </div>
             </div>
-            <div className="md:col-span-2 border-t pt-3 mt-2">
+            <div className="md:col-span-2 border-t pt-3 mt-2 text-gray-600">
               <h4 className="text-sm font-medium text-gray-700 mb-2">Emergency Contact</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
@@ -220,7 +261,7 @@ export default function AddClientModal({ isOpen, onClose, onAdd }) {
         </div>
 
         {/* Medical Information */}
-        <div className="bg-red-50 p-4 rounded-lg">
+        <div className="bg-red-50 p-4 rounded-lg text-gray-800">
           <h3 className="font-medium text-red-800 flex items-center gap-2 mb-3">
             <ClipboardList size={18} /> Medical Information
           </h3>
@@ -300,6 +341,14 @@ export default function AddClientModal({ isOpen, onClose, onAdd }) {
             Register Client
           </button>
         </div>
+
+        {/* Success/Failure Messages */}
+        {successMessage && (
+          <div className="text-green-500 text-sm mt-4">{successMessage}</div>
+        )}
+        {errorMessage && (
+          <div className="text-red-500 text-sm mt-4">{errorMessage}</div>
+        )}
       </form>
     </ModalWrapper>
   );

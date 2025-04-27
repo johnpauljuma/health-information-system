@@ -1,58 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Plus, Filter, MoreVertical, User, Calendar, ClipboardList } from "lucide-react";
 import AddClientModal from "../../components/AddClientModal";
 import ViewClientProfile from "../../components/ViewClientProfile";
 import EnrollClientModal from "../../components/EnrollClientModal";
+import { supabase } from "../../../../lib/supabase"; // Make sure to import your Supabase client
 
 export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [clients, setClients] = useState([
-    {
-      id: "CL-1001",
-      name: "John Doe",
-      age: 32,
-      gender: "Male",
-      programs: ["Malaria", "HIV"],
-      lastVisit: "2023-10-15",
-      status: "Active"
-    },
-    {
-      id: "CL-1002",
-      name: "Jane Smith",
-      age: 28,
-      gender: "Female",
-      programs: ["Prenatal"],
-      lastVisit: "2023-10-10",
-      status: "Active"
-    },
-  ]);
-  
+  const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
 
-  const filteredClients = clients.filter(client => 
-    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Fetch clients from the database when the component mounts
+  useEffect(() => {
+    const fetchClients = async () => {
+      const { data, error } = await supabase
+      .from('clients')
+      .select('*');
+      
+      if (error) {
+        console.error('Error fetching clients:', error);
+      } else {
+        setClients(data); // Update the state with fetched data
+      }
+    };
+
+    fetchClients();
+  }, []); // Empty dependency array ensures this runs once when the component mounts
+
+  const filteredClients = clients.filter(client => {
+    const clientName = client.name ? client.name.toLowerCase() : '';
+    const clientId = client.id ? String(client.id).toLowerCase() : ''; // Convert client.id to string
+    const searchTerm = searchQuery.toLowerCase();
+  
+    return clientName.includes(searchTerm) || clientId.includes(searchTerm);
+  });  
 
   const handleAddClient = (newClient) => {
     setClients(prev => [...prev, newClient]);
     setIsAddClientModalOpen(false);
   };
 
-  const handleEnrollClient = (clientId, program) => {
+  const handleEnrollClient = (clientId, programs) => {
     setClients(prev =>
       prev.map(client =>
         client.id === clientId
-          ? { ...client, programs: [...client.programs, program] }
+          ? { 
+              ...client, 
+              programs: [...(client.programs || []), ...programs] 
+            }
           : client
       )
     );
-    setIsEnrollModalOpen(false);
   };
 
   return (
@@ -117,20 +120,20 @@ export default function ClientsPage() {
                         <User className="text-blue-600" size={18} />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{client.name}</div>
+                        <div className="font-medium text-gray-900">{client.first_name} {client.last_name}</div>
                         <div className="text-sm text-gray-500">ID: {client.id} • {client.age}y • {client.gender}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-2">
-                      {client.programs.map((program) => (
+                        {(client.programs || []).map((program) => (
                         <span key={program} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
-                          {program}
+                            {program}
                         </span>
-                      ))}
+                        ))}
                     </div>
-                  </td>
+                    </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       <Calendar size={14} />

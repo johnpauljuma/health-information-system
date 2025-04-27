@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Menu, Bell, User, X, LayoutDashboard, Users, ClipboardList, FileBarChart, Settings } from "lucide-react";
+import { supabase } from "../../../lib/supabase";
 
 export default function DoctorLayout({ children }) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
+  const router = useRouter();
 
   const toggleSidebar = () => {
     setSidebarOpen(!isSidebarOpen);
@@ -17,7 +20,7 @@ export default function DoctorLayout({ children }) {
     { name: "Dashboard", href: "/doctor", icon: LayoutDashboard, current: pathname === "/doctor" },
     { name: "Programs", href: "/doctor/programs", icon: ClipboardList, current: pathname.startsWith("/doctor/programs") },
     { name: "Clients", href: "/doctor/clients", icon: Users, current: pathname.startsWith("/doctor/clients") },
-    { name: "Reports", href: "/doctor/reports", icon: FileBarChart, current: pathname.startsWith("/doctor/reports") },
+    { name: "Enrolments", href: "/doctor/enrolments", icon: FileBarChart, current: pathname.startsWith("/doctor/enrolments") },
     { name: "Settings", href: "/doctor/settings", icon: Settings, current: pathname.startsWith("/doctor/settings") },
   ];
 
@@ -25,12 +28,10 @@ export default function DoctorLayout({ children }) {
     <div className="flex flex-col min-h-screen bg-gray-900">
       {/* Top Navbar */}
       <header className="w-full bg-blue-700 text-white flex items-center justify-between h-16 px-6 shadow-md fixed top-0 left-0 right-0 z-10">
-        {/* Left: Logo */}
         <div className="flex items-center space-x-2">
           <span className="text-xl font-bold">HealthSys</span>
         </div>
 
-        {/* Right: Menu */}
         <div className="flex items-center space-x-6">
           <button className="md:hidden" onClick={toggleSidebar}>
             <Menu size={24} />
@@ -38,7 +39,6 @@ export default function DoctorLayout({ children }) {
 
           <button className="relative hidden md:block">
             <Bell size={20} />
-            {/* Notification badge */}
             <span className="absolute top-0 right-0 inline-block w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
 
@@ -54,8 +54,8 @@ export default function DoctorLayout({ children }) {
 
       {/* Main Area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - sticky and fixed height */}
-        <div className={`bg-white w-54 p-4 shadow-md fixed md:static inset-y-0 left-0 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 transition-transform duration-200 z-20 h-[calc(100vh-4rem)] md:h-auto md:sticky md:top-16`}>
+        {/* Sidebar */}
+        <div className={`bg-white w-64 p-4 shadow-md fixed md:static inset-y-0 left-0 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 transition-transform duration-200 z-20 h-[calc(100vh-4rem)] md:h-auto md:sticky md:top-16`}>
           <div className="flex items-center justify-between mb-6 md:hidden">
             <h1 className="text-2xl font-bold text-blue-700">HealthSys</h1>
             <button onClick={toggleSidebar}>
@@ -76,7 +76,7 @@ export default function DoctorLayout({ children }) {
           </nav>
         </div>
 
-        {/* Page Content - scrollable */}
+        {/* Page Content */}
         <main className="flex-1 p-6 md:ml-0 bg-gray-100 overflow-y-auto h-[calc(100vh-4rem)]">
           {children}
         </main>
