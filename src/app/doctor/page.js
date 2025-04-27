@@ -13,8 +13,7 @@ export default function DoctorDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [healthPrograms, setHealthPrograms] = useState([]);
   const [clients, setClients] = useState([]);
-  const [enrollments, setEnrollments] = useState([]);
-  const [appointments, setAppointments] = useState([]);
+  const [enrollments, setEnrollments] = useState([]); const [appointments, setAppointments] = useState([]);
 
   // Charts data
   const [lineChartData, setLineChartData] = useState({
@@ -45,45 +44,66 @@ export default function DoctorDashboard() {
 
   // Recent activity
   const [recentActivity, setRecentActivity] = useState([]);
-  const [upcomingAppointments, setUpcomingAppointments] = useState([]);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
+  // Fetch programs separately
+  useEffect(() => {
+    const fetchPrograms = async () => {
+      try {
+        const { data: programsData, error } = await supabase.from('programs').select('*');
+        if (error) throw error;
+
+        setHealthPrograms(programsData || []);
+      } catch (error) {
+        console.error("Error fetching programs:", error);
+      }
+    };
+    fetchPrograms();
+  }, []);
+
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Fetch all data in parallel
+      // First fetch programs separately to debug any issues
+      const { data: programsData, error: programsError } = await supabase
+        .from('programs')
+        .select('*');
+      
+      if (programsError) {
+        console.error('Error fetching programs:', programsError);
+        throw programsError;
+      }
+      
+      console.log("Programs data:", programsData);
+      setHealthPrograms(programsData || []);
+  
+      // Then fetch the rest of the data in parallel
       const [
-        { data: programsData },
-        { data: clientsData },
-        { data: enrollmentsData },
-        { data: appointmentsData },
+        { data: clientsData, error: clientsError },
+        { data: enrollmentsData, error: enrollmentsError },
       ] = await Promise.all([
-        supabase.from('programs').select('*'),
         supabase.from('clients').select('*'),
         supabase.from('enrollments').select('*'),
-        supabase.from('appointments').select('*').order('date', { ascending: true }).limit(5),
       ]);
-
-      setHealthPrograms(programsData || []);
+  
+      if (clientsError) throw clientsError;
+      if (enrollmentsError) throw enrollmentsError;
+  
       setClients(clientsData || []);
       setEnrollments(enrollmentsData || []);
-      setAppointments(appointmentsData || []);
-
+  
       // Process data for cards
       updateCardsData(programsData, clientsData, enrollmentsData);
       
       // Process data for charts
       updateCharts(clientsData, enrollmentsData);
       
-      // Process recent activity (simplified example)
+      // Process recent activity
       updateRecentActivity(clientsData, enrollmentsData);
-      
-      // Process upcoming appointments
-      updateUpcomingAppointments(appointmentsData, clientsData);
-
+  
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -141,31 +161,57 @@ export default function DoctorDashboard() {
     });
   };
 
-  const updateBarChart = (enrollments) => {
-    // Count enrollments per program
-    const programEnrollments = {};
-    enrollments.forEach(enrollment => {
-      programEnrollments[enrollment.program_id] = (programEnrollments[enrollment.program_id] || 0) + 1;
-    });
-
-    // Get program names in the same order as healthPrograms
-    const programNames = healthPrograms.map(p => p.name);
-    const enrollmentCounts = healthPrograms.map(p => programEnrollments[p.id] || 0);
-
-    setBarChartData({
-      labels: programNames,
-      datasets: [{
-        label: "Clients per Program",
-        data: enrollmentCounts,
-        backgroundColor: ["#6366F1", "#EC4899", "#F59E0B", "#10B981", "#3B82F6"],
-      }]
-    });
+  
+  const updateBarChart = async (enrollments) => {
+    try {
+      // Fetch the programs from Supabase inside the function
+      const { data: programs, error: programsError } = await supabase.from('programs').select('*');
+  
+      if (programsError) {
+        console.error("Error fetching programs:", programsError);
+        return;
+      }
+  
+      if (!programs || !Array.isArray(programs)) {
+        console.error("Programs data is invalid or not an array!");
+        return;
+      }
+  
+      // Count enrollments per program_id
+      const programEnrollments = {};
+      enrollments.forEach(enrollment => {
+        programEnrollments[enrollment.program_id] = (programEnrollments[enrollment.program_id] || 0) + 1;
+      });
+  
+      // Get program names from the fetched 'programs' data based on program_id
+      const programNames = Object.keys(programEnrollments).map(programId => {
+        const program = programs.find(p => p.id === programId);
+        return program ? program.name : 'Unknown Program';  // Default to 'Unknown Program' if not found
+      });
+  
+      // Get enrollment counts for each program
+      const enrollmentCounts = Object.keys(programEnrollments).map(programId => programEnrollments[programId]);
+  
+      // Update the bar chart with the new data
+      setBarChartData({
+        labels: programNames,
+        datasets: [{
+          label: "Clients per Program",
+          data: enrollmentCounts,
+          backgroundColor: ["#6366F1", "#EC4899", "#F59E0B", "#10B981", "#3B82F6"],
+        }]
+      });
+    } catch (error) {
+      console.error("Error updating bar chart:", error);
+    }
   };
-
+  
+  
+  
   const updateDoughnutChart = (clients) => {
-    const active = clients.filter(c => c.status === "active").length;
-    const inactive = clients.filter(c => c.status === "inactive").length;
-    const highRisk = clients.filter(c => c.status === "high-risk").length;
+    const active = clients.filter(c => c.status === "Active").length;
+    const inactive = clients.filter(c => c.status === "Inactive").length;
+    const highRisk = clients.filter(c => c.status === "High Risk").length;
 
     setDoughnutChartData({
       labels: ["Active", "Inactive", "High-risk"],
@@ -190,19 +236,6 @@ export default function DoctorDashboard() {
     setRecentActivity(activities);
   };
 
-  const updateUpcomingAppointments = (appointments, clients) => {
-    const formattedAppointments = appointments.map(appointment => {
-      const client = clients.find(c => c.id === appointment.client_id);
-      return {
-        client: `${client?.first_name} ${client?.last_name}`,
-        program: appointment.program,
-        date: formatAppointmentDate(appointment.date),
-      };
-    });
-
-    setUpcomingAppointments(formattedAppointments);
-  };
-
   // Helper functions
   const formatTimeAgo = (dateString) => {
     const date = new Date(dateString);
@@ -213,25 +246,6 @@ export default function DoctorDashboard() {
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
     return `${Math.floor(diffInSeconds / 86400)} days ago`;
-  };
-
-  const formatAppointmentDate = (dateString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (date.toDateString() === today.toDateString()) {
-      return `Today, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    if (date.toDateString() === tomorrow.toDateString()) {
-      return `Tomorrow, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    
-    return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
   // Filter clients based on search
@@ -252,20 +266,6 @@ export default function DoctorDashboard() {
   return (
     <div className="p-6 space-y-6 w-full bg-gray-50 min-h-screen">
       <h1 className="text-3xl font-bold text-gray-900">Health Information System Dashboard</h1>
-
-      {/* Search Bar */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <FaSearch className="text-gray-400" />
-        </div>
-        <input
-          type="text"
-          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          placeholder="Search clients..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
 
       {/* Cards Section - Updated with new metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -313,17 +313,17 @@ export default function DoctorDashboard() {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Monthly Enrollments</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Enrollment Trends</h2>
           <Line data={lineChartData} options={{ responsive: true }} />
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Program Distribution</h2>
+        <div className="bg-white p-6 rounded-lg shadow-md text-gray-700">
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Program Distribution</h2>
           <Bar data={barChartData} options={{ responsive: true }} />
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Client Status</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Client Status</h2>
           <div className="flex justify-center">
             <Doughnut data={doughnutChartData} options={{ responsive: true }} />
           </div>
@@ -331,7 +331,7 @@ export default function DoctorDashboard() {
 
         {/* Recent Activity */}
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Recent Activity</h2>
           <div className="space-y-4">
             {recentActivity.map((activity, index) => (
               <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
@@ -344,27 +344,11 @@ export default function DoctorDashboard() {
       </div>
 
       {/* Bottom Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Upcoming Appointments */}
-        <div className="bg-white p-6 rounded-lg shadow-md lg:col-span-1">
-          <h2 className="text-xl font-semibold mb-4 flex items-center">
-            <FaCalendarAlt className="mr-2 text-blue-500" />
-            Upcoming Appointments
-          </h2>
-          <div className="space-y-4">
-            {upcomingAppointments.map((appointment, index) => (
-              <div key={index} className="border rounded-lg p-3 hover:bg-gray-50">
-                <h3 className="font-medium text-gray-900">{appointment.client}</h3>
-                <p className="text-sm text-gray-600">{appointment.program}</p>
-                <p className="text-sm text-blue-600 font-medium">{appointment.date}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
 
         {/* Quick Client List */}
         <div className="bg-white p-6 rounded-lg shadow-md lg:col-span-2">
-          <h2 className="text-xl font-semibold mb-4">Clients</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Clients</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">

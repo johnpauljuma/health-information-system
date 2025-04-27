@@ -81,7 +81,7 @@ export default function ViewClientProfile({ client, isOpen, onClose }) {
           {/* Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Personal Info */}
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-gray-50 p-4 rounded-lg text-gray-900">
               <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
                 <User size={18} className="text-gray-500" />
                 Personal Information
@@ -94,7 +94,7 @@ export default function ViewClientProfile({ client, isOpen, onClose }) {
             </div>
             
             {/* Contact Info */}
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-gray-50 p-4 rounded-lg text-gray-900">
               <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
                 <Phone size={18} className="text-gray-500" />
                 Contact Information
@@ -107,7 +107,7 @@ export default function ViewClientProfile({ client, isOpen, onClose }) {
             </div>
             
             {/* Medical Info */}
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-gray-50 p-4 rounded-lg text-gray-900">
               <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
                 <ClipboardList size={18} className="text-gray-500" />
                 Medical Information
@@ -120,7 +120,7 @@ export default function ViewClientProfile({ client, isOpen, onClose }) {
             </div>
             
             {/* Programs */}
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="bg-gray-50 p-4 rounded-lg text-gray-900">
               <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
                 <ClipboardList size={18} className="text-gray-500" />
                 Programs

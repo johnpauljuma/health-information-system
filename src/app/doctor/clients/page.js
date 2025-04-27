@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, Filter, MoreVertical, User, Calendar, ClipboardList } from "lucide-react";
+import { Search, Plus, Filter, User, Calendar, ClipboardList, ChevronLeft, ChevronRight } from "lucide-react";
 import AddClientModal from "../../components/AddClientModal";
 import ViewClientProfile from "../../components/ViewClientProfile";
 import EnrollClientModal from "../../components/EnrollClientModal";
-import { supabase } from "../../../../lib/supabase"; // Make sure to import your Supabase client
+import { supabase } from "../../../../lib/supabase";
 
 export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -14,48 +14,107 @@ export default function ClientsPage() {
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+  const [clientPrograms, setClientPrograms] = useState({});
+  const [allPrograms, setAllPrograms] = useState([]);
+  const [selectedProgramFilter, setSelectedProgramFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
-  // Fetch clients from the database when the component mounts
+  // Fetch clients, programs, and enrollments
   useEffect(() => {
-    const fetchClients = async () => {
-      const { data, error } = await supabase
-      .from('clients')
-      .select('*');
+    const fetchData = async () => {
+      // Fetch clients
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('clients')
+        .select('*');
       
-      if (error) {
-        console.error('Error fetching clients:', error);
-      } else {
-        setClients(data); // Update the state with fetched data
+      if (clientsError) {
+        console.error('Error fetching clients:', clientsError);
+        return;
       }
+
+      setClients(clientsData || []);
+
+      // Fetch all programs for filter dropdown
+      const { data: programsData, error: programsError } = await supabase
+        .from('programs')
+        .select('*');
+      
+      if (programsError) {
+        console.error('Error fetching programs:', programsError);
+        return;
+      }
+
+      setAllPrograms(programsData || []);
+
+      // Fetch enrollments with program names
+      const { data: enrollmentsData, error: enrollmentsError } = await supabase
+        .from('enrollments')
+        .select(`
+          client_id,
+          programs!inner(name)
+        `);
+      
+      if (enrollmentsError) {
+        console.error('Error fetching enrollments:', enrollmentsError);
+        return;
+      }
+
+      // Organize programs by client
+      const programsByClient = {};
+      enrollmentsData.forEach(enrollment => {
+        if (!programsByClient[enrollment.client_id]) {
+          programsByClient[enrollment.client_id] = [];
+        }
+        if (enrollment.programs) {
+          programsByClient[enrollment.client_id].push(enrollment.programs.name);
+        }
+      });
+
+      setClientPrograms(programsByClient);
     };
 
-    fetchClients();
-  }, []); // Empty dependency array ensures this runs once when the component mounts
+    fetchData();
+  }, []);
 
+  // Filter clients by search query and selected program
   const filteredClients = clients.filter(client => {
-    const clientName = client.name ? client.name.toLowerCase() : '';
-    const clientId = client.id ? String(client.id).toLowerCase() : ''; // Convert client.id to string
-    const searchTerm = searchQuery.toLowerCase();
-  
-    return clientName.includes(searchTerm) || clientId.includes(searchTerm);
-  });  
+    const matchesSearch = `${client.first_name} ${client.last_name}`.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         String(client.id).toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesProgram = !selectedProgramFilter || 
+                         (clientPrograms[client.id] && 
+                          clientPrograms[client.id].includes(selectedProgramFilter));
+    
+    return matchesSearch && matchesProgram;
+  });
+
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentClients = filteredClients.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const handleAddClient = (newClient) => {
     setClients(prev => [...prev, newClient]);
     setIsAddClientModalOpen(false);
   };
 
-  const handleEnrollClient = (clientId, programs) => {
-    setClients(prev =>
-      prev.map(client =>
-        client.id === clientId
-          ? { 
-              ...client, 
-              programs: [...(client.programs || []), ...programs] 
-            }
-          : client
-      )
-    );
+  const handleEnrollClient = (enrollments) => {
+    const updatedClientPrograms = { ...clientPrograms };
+    
+    enrollments.forEach(enrollment => {
+      if (!updatedClientPrograms[enrollment.client_id]) {
+        updatedClientPrograms[enrollment.client_id] = [];
+      }
+      if (enrollment.programs) {
+        updatedClientPrograms[enrollment.client_id].push(enrollment.programs.name);
+      }
+    });
+
+    setClientPrograms(updatedClientPrograms);
   };
 
   return (
@@ -78,7 +137,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search and Filters */}
       <div className="bg-white p-4 rounded-xl shadow-sm mb-6">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
@@ -86,20 +145,37 @@ export default function ClientsPage() {
             <input
               type="text"
               placeholder="Search clients by name or ID..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+              className="w-full pl-10 pr-4 py-2 border text-gray-600 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1); // Reset to first page when searching
+              }}
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">
-            <Filter size={16} />
-            <span>Filters</span>
-          </button>
+          <div className="relative flex-1">
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <select
+              className="w-full pl-10 pr-4 py-2 border text-gray-600 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 appearance-none bg-white"
+              value={selectedProgramFilter}
+              onChange={(e) => {
+                setSelectedProgramFilter(e.target.value);
+                setCurrentPage(1); // Reset to first page when filtering
+              }}
+            >
+              <option value="">All Programs</option>
+              {allPrograms.map(program => (
+                <option key={program.id} value={program.name}>
+                  {program.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Clients Table */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-4">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
@@ -112,7 +188,7 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredClients.map((client) => (
+              {currentClients.map((client) => (
                 <tr key={client.id} className="hover:bg-gray-50 transition">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
@@ -121,23 +197,26 @@ export default function ClientsPage() {
                       </div>
                       <div>
                         <div className="font-medium text-gray-900">{client.first_name} {client.last_name}</div>
-                        <div className="text-sm text-gray-500">ID: {client.id} • {client.age}y • {client.gender}</div>
+                        <div className="text-sm text-gray-500">ID: {client.id} • {client.gender}</div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-2">
-                        {(client.programs || []).map((program) => (
-                        <span key={program} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
-                            {program}
+                      {(clientPrograms[client.id] || []).map((programName, index) => (
+                        <span key={index} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
+                          {programName}
                         </span>
-                        ))}
+                      ))}
+                      {(!clientPrograms[client.id] || clientPrograms[client.id].length === 0) && (
+                        <span className="text-gray-400 text-xs">No programs</span>
+                      )}
                     </div>
-                    </td>
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       <Calendar size={14} />
-                      {client.lastVisit}
+                      {client.lastVisit || 'Never'}
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -181,10 +260,51 @@ export default function ClientsPage() {
         </div>
       )}
 
+      {/* Pagination */}
+      {filteredClients.length > 0 && (
+        <div className="flex items-center justify-between bg-white px-6 py-3 rounded-b-xl shadow-sm">
+          <div className="text-sm text-gray-500">
+            Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredClients.length)} of {filteredClients.length} clients
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`p-2 rounded-md ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
+              <button
+                key={number}
+                onClick={() => paginate(number)}
+                className={`w-8 h-8 rounded-md text-sm ${currentPage === number ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                {number}
+              </button>
+            ))}
+            
+            <button
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`p-2 rounded-md ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
       <AddClientModal isOpen={isAddClientModalOpen} onClose={() => setIsAddClientModalOpen(false)} onAdd={handleAddClient} />
       <ViewClientProfile client={selectedClient} isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
-      <EnrollClientModal client={selectedClient} isOpen={isEnrollModalOpen} onClose={() => setIsEnrollModalOpen(false)} onEnroll={handleEnrollClient} />
+      <EnrollClientModal 
+        client={selectedClient} 
+        isOpen={isEnrollModalOpen} 
+        onClose={() => setIsEnrollModalOpen(false)} 
+        onEnroll={handleEnrollClient} 
+      />
     </div>
   );
 }

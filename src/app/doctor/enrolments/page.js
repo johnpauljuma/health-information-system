@@ -190,15 +190,15 @@ export default function EnrollmentsPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="Search clients or programs..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+              placeholder="Search clients or programs by name..."
+              className="w-full pl-10 pr-4 text-gray-500 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           
           {/* Status Filter Dropdown */}
-          <div className="relative">
+          <div className="relative text-gray-600">  
             <button 
               className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
               onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
@@ -229,15 +229,6 @@ export default function EnrollmentsPage() {
                 <button 
                   className="block w-full text-left px-4 py-2 hover:bg-gray-100"
                   onClick={() => {
-                    setStatusFilter("completed");
-                    setIsStatusDropdownOpen(false);
-                  }}
-                >
-                  Completed
-                </button>
-                <button 
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  onClick={() => {
                     setStatusFilter("inactive");
                     setIsStatusDropdownOpen(false);
                   }}
@@ -249,7 +240,7 @@ export default function EnrollmentsPage() {
           </div>
 
           {/* Program Filter Dropdown */}
-          <div className="relative">
+          <div className="relative text-gray-600">
             <button 
               className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
               onClick={() => setIsProgramDropdownOpen(!isProgramDropdownOpen)}
@@ -349,59 +340,58 @@ export default function EnrollmentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-  {filteredEnrollments.map((enrollment) => {
-    const client = enrollment.clients ?? {};
-    const program = enrollment.programs ?? {};
-    
-    return (
-      <tr key={enrollment.id} className="hover:bg-gray-50 transition">
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="flex items-center gap-3">
-            <div className="bg-blue-100 p-2 rounded-full">
-              <span className="text-blue-600 text-sm font-medium">
-                {(client.first_name?.charAt(0) ?? '') + (client.last_name?.charAt(0) ?? '')}
-              </span>
-            </div>
-            <div>
-              <div className="font-medium text-gray-900">
-                {client.first_name ?? 'Unknown'} {client.last_name ?? ''}
-              </div>
-              <div className="text-sm text-gray-500">ID: {client.id ?? 'N/A'}</div>
-            </div>
-          </div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="font-medium text-gray-900">{program.name ?? 'Unknown Program'}</div>
-          <div className="text-sm text-gray-500">ID: {program.id ?? 'N/A'}</div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-          {enrollment.enrollment_date ? new Date(enrollment.enrollment_date).toLocaleDateString() : 'N/A'}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-          {enrollment.last_visit ? new Date(enrollment.last_visit).toLocaleDateString() : "Never"}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="flex items-center gap-2">
-            {getStatusIcon(enrollment.status)}
-            <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${getBadgeClass(enrollment.status)}`}>
-              {enrollment.status}
-            </span>
-          </div>
-        </td>
-        <td className="px-6 py-4 text-right whitespace-nowrap">
-          <div className="flex justify-end gap-2">
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-              View
-            </button>
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
-              Edit
-            </button>
-          </div>
-        </td>
-      </tr>
-    );
-  })}
-</tbody>
+                {filteredEnrollments.map((enrollment) => {
+                    const client = enrollment.clients ?? {};
+                    const program = enrollment.programs ?? {};
+                    
+                    return (
+                    <tr key={enrollment.id} className="hover:bg-gray-50 transition">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-blue-100 p-2 rounded-full">
+                            <span className="text-blue-600 text-sm font-medium">
+                                {(client.first_name?.charAt(0) ?? '') + (client.last_name?.charAt(0) ?? '')}
+                            </span>
+                            </div>
+                            <div>
+                            <div className="font-medium text-gray-900">
+                                {client.first_name ?? 'Unknown'} {client.last_name ?? ''}
+                            </div>
+                            <div className="text-sm text-gray-500">ID: {client.id ?? 'N/A'}</div>
+                            </div>
+                        </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="font-medium text-gray-900">{program.name ?? 'Unknown Program'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {enrollment.enrollment_date ? new Date(enrollment.enrollment_date).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {enrollment.last_visit ? new Date(enrollment.last_visit).toLocaleDateString() : "Never"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                            {getStatusIcon(enrollment.status)}
+                            <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${getBadgeClass(enrollment.status)}`}>
+                            {enrollment.status}
+                            </span>
+                        </div>
+                        </td>
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <div className="flex justify-end gap-2 text-gray-500">
+                            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 hover:text-gray-700 hover:cursor-pointer">
+                            View
+                            </button>
+                            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 hover:text-gray-700 hover:cursor-pointer">
+                            Edit
+                            </button>
+                        </div>
+                        </td>
+                    </tr>
+                    );
+                })}
+                </tbody>
             </table>
           </div>
         </div>

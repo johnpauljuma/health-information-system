@@ -1,4 +1,3 @@
-// components/EnrollClientModal.jsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,7 +5,16 @@ import { Search, Check, X } from "lucide-react";
 import ModalWrapper from "./ModalWrapper";
 import { supabase } from "../../../lib/supabase";
 
-export default function EnrollClientModal({ clients, isOpen, onClose }) {
+export default function EnrollClientModal({ 
+  client, // single client (optional)
+  clients, // multiple clients (optional)
+  isOpen, 
+  onClose,
+  onEnroll 
+}) {
+  // Combine both props into a single clients array
+  const selectedClients = clients || (client ? [client] : []);
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [availablePrograms, setAvailablePrograms] = useState([]);
   const [selectedPrograms, setSelectedPrograms] = useState([]);
@@ -33,6 +41,7 @@ export default function EnrollClientModal({ clients, isOpen, onClose }) {
 
     if (isOpen) {
       fetchPrograms();
+      setSelectedPrograms([]); // Reset selections when modal opens
     }
   }, [isOpen]);
 
@@ -50,15 +59,14 @@ export default function EnrollClientModal({ clients, isOpen, onClose }) {
 
   const handleEnroll = async (e) => {
     e.preventDefault();
-    if (selectedPrograms.length === 0 || !clients || clients.length === 0) return;
+    if (selectedPrograms.length === 0 || selectedClients.length === 0) return;
 
     setIsSubmitting(true);
     
     try {
-      // Create enrollment records for each client-program combination
       const enrollments = [];
       
-      for (const client of clients) {
+      for (const client of selectedClients) {
         for (const programId of selectedPrograms) {
           enrollments.push({
             client_id: client.id,
@@ -68,7 +76,6 @@ export default function EnrollClientModal({ clients, isOpen, onClose }) {
         }
       }
 
-      // Insert all enrollments in a single transaction
       const { data, error } = await supabase
         .from('enrollments')
         .insert(enrollments)
@@ -76,9 +83,9 @@ export default function EnrollClientModal({ clients, isOpen, onClose }) {
       
       if (error) throw error;
       
-      // Close modal and reset state
       setSelectedPrograms([]);
       onClose(true); // Pass true to indicate success
+      if (onEnroll) onEnroll(data); // Call optional callback
     } catch (error) {
       console.error('Error creating enrollments:', error);
     } finally {
@@ -86,9 +93,11 @@ export default function EnrollClientModal({ clients, isOpen, onClose }) {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <ModalWrapper 
-      title={`Enroll ${clients.length} Client${clients.length > 1 ? 's' : ''}`} 
+      title={`Enroll ${selectedClients.length} Client${selectedClients.length !== 1 ? 's' : ''}`}
       isOpen={isOpen} 
       onClose={() => {
         setSelectedPrograms([]);
@@ -96,16 +105,18 @@ export default function EnrollClientModal({ clients, isOpen, onClose }) {
       }}
     >
       <div className="flex flex-col gap-4">
-        <div className="bg-blue-50 p-3 rounded-lg">
-          <h4 className="font-medium text-blue-800">Selected Clients:</h4>
-          <ul className="mt-1 text-sm text-blue-700">
-            {clients.map(client => (
-              <li key={client.id}>
-                {client.first_name} {client.last_name} (ID: {client.id})
-              </li>
-            ))}
-          </ul>
-        </div>
+        {selectedClients.length > 0 && (
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <h4 className="font-medium text-blue-800">Selected Client{selectedClients.length !== 1 ? 's' : ''}:</h4>
+            <ul className="mt-1 text-sm text-blue-700">
+              {selectedClients.map(client => (
+                <li key={client.id}>
+                  {client.first_name} {client.last_name} (ID: {client.id})
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -163,9 +174,9 @@ export default function EnrollClientModal({ clients, isOpen, onClose }) {
           <button
             type="button"
             onClick={handleEnroll}
-            disabled={selectedPrograms.length === 0 || isSubmitting}
+            disabled={selectedPrograms.length === 0 || isSubmitting || selectedClients.length === 0}
             className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-              selectedPrograms.length === 0 || isSubmitting
+              selectedPrograms.length === 0 || isSubmitting || selectedClients.length === 0
                 ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                 : "bg-green-600 hover:bg-green-700 text-white"
             }`}
@@ -176,7 +187,7 @@ export default function EnrollClientModal({ clients, isOpen, onClose }) {
                 Enrolling...
               </>
             ) : (
-              `Enroll ${clients.length} Client${clients.length > 1 ? 's' : ''}`
+              `Enroll ${selectedClients.length} Client${selectedClients.length !== 1 ? 's' : ''}`
             )}
           </button>
         </div>
