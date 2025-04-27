@@ -5,12 +5,12 @@ import { X, ClipboardList, Users, Calendar, FileText, Activity, MapPin, CircleDo
 import { supabase } from "../../../lib/supabase";
 
 export default function ViewProgramModal({ isOpen, onClose, program }) {
-  if (!isOpen || !program) return null;
 
   const [enrolledClients, setEnrolledClients] = useState([]);
   const [page, setPage] = useState(1);
   const [totalClients, setTotalClients] = useState(0);
   const [loading, setLoading] = useState(false);
+  if (!isOpen || !program) return null;
 
   useEffect(() => {
     if (program && isOpen) {
