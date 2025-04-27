@@ -10,7 +10,7 @@ export default function ViewProgramModal({ isOpen, onClose, program }) {
   const [page, setPage] = useState(1);
   const [totalClients, setTotalClients] = useState(0);
   const [loading, setLoading] = useState(false);
-  if (!isOpen || !program) return null;
+ // if (!isOpen || !program) return null;
 
   useEffect(() => {
     if (program && isOpen) {
